@@ -1,10 +1,11 @@
 import pandas as pd
-import tabula
+import camelot  # tabulaの代わりにcamelotをインポートします
 import streamlit as st
+import base64
 
 def extract_table_from_pdf(file):
-    tables = tabula.read_pdf(file, lattice=True, pages='all')
-    return pd.concat(tables)
+    tables = camelot.read_pdf(file, stream=True, pages='all')  # read_pdfの呼び出しをcamelotのものに書き換えます
+    return pd.concat([table.df for table in tables])
 
 def extract_inventory_from_excel(file):
     return pd.read_excel(file, sheet_name=None)
@@ -39,11 +40,23 @@ def main():
                     dd[key] = True
                 result_rows.append([key, value])
             st.subheader(sheet_name)
-            st.write(pd.DataFrame(result_rows, columns=['商品コード', '数量']))
+            result_df = pd.DataFrame(result_rows, columns=['商品コード', '数量'])
+            st.write(result_df)
+
+            # ダウンロードボタンを追加
+            csv = result_df.to_csv(index=False)
+            b64 = base64.b64encode(csv.encode()).decode()
+            st.markdown(f'<a href="data:file/csv;base64,{b64}" download="result.csv">Download csv file</a>', unsafe_allow_html=True)
 
         st.subheader("在庫表になかった商品コードと合計数量")
         missing_items = [[k, d[k]] for k, v in dd.items() if not v]
-        st.write(pd.DataFrame(missing_items, columns=['商品コード', '数量']))
+        missing_items_df = pd.DataFrame(missing_items, columns=['商品コード', '数量'])
+        st.write(missing_items_df)
+
+        # ダウンロードボタンを追加
+        csv = missing_items_df.to_csv(index=False)
+        b64 = base64.b64encode(csv.encode()).decode()
+        st.markdown(f'<a href="data:file/csv;base64,{b64}" download="missing_items.csv">Download csv file</a>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
